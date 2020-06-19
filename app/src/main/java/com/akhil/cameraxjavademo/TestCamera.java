@@ -1,10 +1,16 @@
 package com.akhil.cameraxjavademo;
 
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.util.Size;
+import android.view.Display;
+import android.widget.ImageView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -19,6 +25,7 @@ import androidx.camera.core.Preview;
 import androidx.camera.core.impl.PreviewConfig;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.google.common.util.concurrent.ListenableFuture;
@@ -35,19 +42,25 @@ import butterknife.ButterKnife;
 import butterknife.OnClick;
 
 public class TestCamera extends AppCompatActivity {
+
+    private final String[] REQUIRED_PERMISSIONS = new String[]{"android.permission.CAMERA", "android.permission.WRITE_EXTERNAL_STORAGE"};
+    private int REQUEST_CODE_PERMISSIONS = 1001;
+
     private final String FILENAME = "yyyyMMddHHmmss";
     private final String PHOTO_EXTENSION = ".jpg";
     @BindView(R.id.previewView)
     PreviewView previewView;
     Preview preview;
     ProcessCameraProvider cameraProvider;
+    @BindView(R.id.iv_image_preview)
+    ImageView ivImagePreview;
     private ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
     private int lensFacing = CameraSelector.LENS_FACING_BACK;
     private ImageCapture imageCapture;
     private ImageAnalysis imageAnalyzer;
     private ExecutorService executor = Executors.newSingleThreadExecutor();
     private File outputDirectory;
-    private int radio = AspectRatio.RATIO_4_3;
+    private int ratio = AspectRatio.RATIO_4_3;
     private PreviewConfig previewConfig;
     private int turnOnSplash = ImageCapture.FLASH_MODE_OFF;
     private boolean isTime = false;
@@ -58,6 +71,16 @@ public class TestCamera extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
 
+        if (allPermissionsGranted()) {
+            startCamera(); //start camera if permission has been granted by user
+        } else {
+            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS);
+        }
+
+
+    }
+
+    private void startCamera() {
         cameraProviderFuture = ProcessCameraProvider.getInstance(this);
         outputDirectory = getOutputDirectory(this);
         cameraProviderFuture.addListener(() -> {
@@ -68,44 +91,6 @@ public class TestCamera extends AppCompatActivity {
                 e.printStackTrace();
             }
         }, ContextCompat.getMainExecutor(this));
-    }
-
-    private File getOutputDirectory(Context context) {
-        File[] externalMediaDirs = context.getApplicationContext().getExternalMediaDirs();
-
-        if (externalMediaDirs != null && externalMediaDirs.length > 0) {
-            File file = new File(externalMediaDirs[0].getPath(), "CameraXDemo");
-            if (!file.exists()) {
-                file.mkdirs();
-            }
-            return file;
-        }
-        return context.getFilesDir();
-//        return Environment.getRootDirectory();
-    }
-
-    private void bindPreview() {
-        preview = new Preview.Builder()
-                .build();
-        CameraSelector cameraSelector = new CameraSelector.Builder()
-                .requireLensFacing(lensFacing)
-                .build();
-        imageCapture = new ImageCapture.Builder().build();
-        imageCapture.setFlashMode(turnOnSplash);
-        imageAnalyzer = new ImageAnalysis.Builder().build();
-        cameraProvider.unbindAll();
-
-        try {
-            // A variable number of use-cases can be passed here -
-            // camera provides access to CameraControl & CameraInfo
-            preview.setSurfaceProvider(previewView.createSurfaceProvider());
-            Camera camera = cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture, imageAnalyzer);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-
     }
 
     @OnClick(R.id.camera_switch_button)
@@ -136,7 +121,92 @@ public class TestCamera extends AppCompatActivity {
             takeAPhoto();
         }
 
+
     }
+
+    @OnClick(R.id.iv_splash)
+    public void onViewClickedTimer() {
+        if (turnOnSplash == ImageCapture.FLASH_MODE_OFF) {
+            turnOnSplash = ImageCapture.FLASH_MODE_AUTO;
+        } else if (turnOnSplash == ImageCapture.FLASH_MODE_AUTO) {
+            turnOnSplash = ImageCapture.FLASH_MODE_ON;
+        } else {
+            turnOnSplash = ImageCapture.FLASH_MODE_OFF;
+        }
+        imageCapture.setFlashMode(turnOnSplash);
+    }
+
+    @OnClick(R.id.iv_ratio)
+    public void onViewClickedRadio() {
+
+        if (ratio == AspectRatio.RATIO_4_3) {
+            ratio = AspectRatio.RATIO_16_9;
+        } else {
+            ratio = AspectRatio.RATIO_4_3;
+        }
+
+        bindPreview();
+    }
+
+    @OnClick(R.id.iv_time)
+    public void onViewClickedTime() {
+
+        if (isTime) {
+            isTime = false;
+        } else {
+            isTime = true;
+        }
+
+    }
+
+    private File getOutputDirectory(Context context) {
+        File[] externalMediaDirs = context.getApplicationContext().getExternalMediaDirs();
+
+        if (externalMediaDirs != null && externalMediaDirs.length > 0) {
+            File file = new File(externalMediaDirs[0].getPath(), "CameraXDemo");
+            if (!file.exists()) {
+                file.mkdirs();
+            }
+            return file;
+        }
+        return context.getFilesDir();
+//        return Environment.getRootDirectory();
+    }
+
+    private void bindPreview() {
+        preview = new Preview.Builder()
+                .setTargetAspectRatio(ratio)
+                .build();
+        CameraSelector cameraSelector = new CameraSelector.Builder()
+                .requireLensFacing(lensFacing)
+                .build();
+
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+        int height = displayMetrics.heightPixels;
+        int width = displayMetrics.widthPixels;
+        Log.i("hadtt", "bindPreview: "+width+"----"+height);
+
+
+        imageCapture = new ImageCapture.Builder()
+                .setFlashMode(turnOnSplash)
+                .build();
+        imageAnalyzer = new ImageAnalysis.Builder().build();
+        cameraProvider.unbindAll();
+
+        try {
+            // A variable number of use-cases can be passed here -
+            // camera provides access to CameraControl & CameraInfo
+            preview.setSurfaceProvider(previewView.createSurfaceProvider());
+            Camera camera = cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture, imageAnalyzer);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
 
     private File createFile(File baseFolder, String fomat, String extension) {
 
@@ -165,38 +235,28 @@ public class TestCamera extends AppCompatActivity {
         });
     }
 
-    @OnClick(R.id.iv_splash)
-    public void onViewClickedTimer() {
-        if (turnOnSplash == ImageCapture.FLASH_MODE_OFF) {
-            turnOnSplash = ImageCapture.FLASH_MODE_AUTO;
-        } else if (turnOnSplash == ImageCapture.FLASH_MODE_AUTO) {
-            turnOnSplash = ImageCapture.FLASH_MODE_ON;
-        } else {
-            turnOnSplash = ImageCapture.FLASH_MODE_OFF;
+    private boolean allPermissionsGranted() {
+
+        for (String permission : REQUIRED_PERMISSIONS) {
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
         }
-        imageCapture.setFlashMode(turnOnSplash);
+        return true;
     }
 
-    @OnClick(R.id.iv_ratio)
-    public void onViewClickedRadio() {
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
 
-        if (radio == AspectRatio.RATIO_4_3) {
-            radio = AspectRatio.RATIO_16_9;
-        } else {
-            radio = AspectRatio.RATIO_4_3;
+        if (requestCode == REQUEST_CODE_PERMISSIONS) {
+            if (allPermissionsGranted()) {
+                startCamera();
+            } else {
+                Toast.makeText(this, "Permissions not granted by the user.", Toast.LENGTH_SHORT).show();
+                this.finish();
+            }
         }
-
-        bindPreview();
     }
 
-    @OnClick(R.id.iv_time)
-    public void onViewClickedTime() {
 
-        if (isTime) {
-            isTime = false;
-        } else {
-            isTime = true;
-        }
-
-    }
 }

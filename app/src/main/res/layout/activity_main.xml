@@ -2,20 +2,30 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FF000000"
-    >
+    android:background="#FF000000">
 
     <androidx.camera.view.PreviewView
         android:id="@+id/previewView"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginBottom="8dp"
         android:contentDescription="@string/preview_area"
         android:importantForAccessibility="no"
-        app:layout_constraintBottom_toTopOf="@+id/linearLayout"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <TextureView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintDimensionRatio="9:16"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+    </TextureView>
 
     <ImageView
         android:id="@+id/iv_splash"
@@ -23,9 +33,10 @@
         android:layout_height="30dp"
         android:layout_marginStart="20dp"
         android:layout_marginTop="20dp"
+        android:src="@drawable/ic_splash"
+        android:background="?attr/selectableItemBackgroundBorderless"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        android:src="@drawable/ic_splash" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <ImageView
         android:id="@+id/iv_ratio"
@@ -33,9 +44,10 @@
         android:layout_height="30dp"
         android:layout_marginStart="20dp"
         android:layout_marginTop="20dp"
+        android:src="@drawable/ic_radio"
+        android:background="?attr/selectableItemBackgroundBorderless"
         app:layout_constraintLeft_toRightOf="@id/iv_splash"
-        app:layout_constraintTop_toTopOf="parent"
-        android:src="@drawable/ic_radio" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <ImageView
         android:id="@+id/iv_time"
@@ -43,9 +55,10 @@
         android:layout_height="30dp"
         android:layout_marginStart="20dp"
         android:layout_marginTop="20dp"
+        android:src="@drawable/ic_time"
+        android:background="?attr/selectableItemBackgroundBorderless"
         app:layout_constraintLeft_toRightOf="@id/iv_ratio"
-        app:layout_constraintTop_toTopOf="parent"
-        android:src="@drawable/ic_time" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/linearLayout"
@@ -60,15 +73,14 @@
         android:weightSum="3"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/previewView">
+        app:layout_constraintStart_toStartOf="parent">
 
         <ImageButton
             android:id="@+id/camera_switch_button"
             android:layout_width="100dp"
             android:layout_height="wrap_content"
             android:adjustViewBounds="true"
-            android:background="@android:color/transparent"
+            android:background="?attr/selectableItemBackgroundBorderless"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintLeft_toLeftOf="parent"
             app:srcCompat="@drawable/ic_switch" />
@@ -96,5 +108,10 @@
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <ImageView
+        android:id="@+id/iv_image_preview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
