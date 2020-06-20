@@ -1,5 +1,6 @@
 package com.akhil.cameraxjavademo;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -7,8 +8,9 @@ import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.util.DisplayMetrics;
 import android.util.Log;
-import android.util.Size;
-import android.view.Display;
+import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
 
@@ -18,7 +20,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.AspectRatio;
 import androidx.camera.core.Camera;
 import androidx.camera.core.CameraSelector;
-import androidx.camera.core.CameraX;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
@@ -45,16 +46,19 @@ import butterknife.OnClick;
 public class TestCamera extends AppCompatActivity {
 
     private final String[] REQUIRED_PERMISSIONS = new String[]{"android.permission.CAMERA", "android.permission.WRITE_EXTERNAL_STORAGE"};
-    private int REQUEST_CODE_PERMISSIONS = 1001;
-
     private final String FILENAME = "yyyyMMddHHmmss";
     private final String PHOTO_EXTENSION = ".jpg";
+    @BindView(R.id.view_grid)
+    View viewGridContainer;
     @BindView(R.id.previewView)
     PreviewView previewView;
     Preview preview;
     ProcessCameraProvider cameraProvider;
     @BindView(R.id.iv_image_preview)
     ImageView ivImagePreview;
+    @BindView(R.id.iv_show_image)
+    ImageView ivShowImage;
+    private int REQUEST_CODE_PERMISSIONS = 1001;
     private ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
     private int lensFacing = CameraSelector.LENS_FACING_BACK;
     private ImageCapture imageCapture;
@@ -65,8 +69,11 @@ public class TestCamera extends AppCompatActivity {
     private PreviewConfig previewConfig;
     private int turnOnSplash = ImageCapture.FLASH_MODE_OFF;
     private boolean isTime = false;
+    private boolean isGrib = false;
     private CountDownTimer countDownTimer;
+    private Camera camera;
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -79,8 +86,53 @@ public class TestCamera extends AppCompatActivity {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS);
         }
 
+//        zoomSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+//            @Override
+//            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+//                camera.getCameraControl().setLinearZoom((float) progress / 100);
+//            }
+//
+//            @Override
+//            public void onStartTrackingTouch(SeekBar seekBar) {
+//
+//            }
+//
+//            @Override
+//            public void onStopTrackingTouch(SeekBar seekBar) {
+//
+//            }
+//        });
+
+        ScaleGestureDetector scaleGestureDetector = new ScaleGestureDetector(this, new ScaleGestureDetector.OnScaleGestureListener() {
+            @Override
+            public boolean onScale(ScaleGestureDetector detector) {
+                camera.getCameraInfo().getZoomState().getValue().getMaxZoomRatio();
+                float v = camera.getCameraInfo().getZoomState().getValue().getZoomRatio() * detector.getScaleFactor();
+                camera.getCameraControl().setZoomRatio(v);
+                return true;
+            }
+
+            @Override
+            public boolean onScaleBegin(ScaleGestureDetector detector) {
+                return true;
+            }
+
+            @Override
+            public void onScaleEnd(ScaleGestureDetector detector) {
+            }
+        });
+
+
+        previewView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                scaleGestureDetector.onTouchEvent(event);
+                return true;
+            }
+        });
 
     }
+
 
     private void startCamera() {
         cameraProviderFuture = ProcessCameraProvider.getInstance(this);
@@ -179,6 +231,7 @@ public class TestCamera extends AppCompatActivity {
         preview = new Preview.Builder()
                 .setTargetAspectRatio(ratio)
                 .build();
+
         CameraSelector cameraSelector = new CameraSelector.Builder()
                 .requireLensFacing(lensFacing)
                 .build();
@@ -192,20 +245,21 @@ public class TestCamera extends AppCompatActivity {
 
         imageCapture = new ImageCapture.Builder()
                 .setFlashMode(turnOnSplash)
+                .setTargetAspectRatio(ratio)
                 .build();
-        imageAnalyzer = new ImageAnalysis.Builder().build();
+        imageAnalyzer = new ImageAnalysis.Builder()
+                .setTargetAspectRatio(ratio).build();
         cameraProvider.unbindAll();
 
         try {
             // A variable number of use-cases can be passed here -
             // camera provides access to CameraControl & CameraInfo
             preview.setSurfaceProvider(previewView.createSurfaceProvider());
-            Camera camera = cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture, imageAnalyzer);
+            camera = cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture, imageAnalyzer);
 
         } catch (Exception e) {
             e.printStackTrace();
         }
-
 
     }
 
@@ -261,4 +315,14 @@ public class TestCamera extends AppCompatActivity {
     }
 
 
+    @OnClick(R.id.iv_grib)
+    public void onViewClickedGrib() {
+        if (isGrib) {
+            isGrib = false;
+            viewGridContainer.setVisibility(View.GONE);
+        } else {
+            isGrib = true;
+            viewGridContainer.setVisibility(View.VISIBLE);
+        }
+    }
 }
