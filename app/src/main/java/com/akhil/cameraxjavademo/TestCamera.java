@@ -18,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.AspectRatio;
 import androidx.camera.core.Camera;
 import androidx.camera.core.CameraSelector;
+import androidx.camera.core.CameraX;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
@@ -64,6 +65,7 @@ public class TestCamera extends AppCompatActivity {
     private PreviewConfig previewConfig;
     private int turnOnSplash = ImageCapture.FLASH_MODE_OFF;
     private boolean isTime = false;
+    private CountDownTimer countDownTimer;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -106,7 +108,8 @@ public class TestCamera extends AppCompatActivity {
     @OnClick(R.id.captureImg)
     public void onViewClickedCaptureImg() {
         if (isTime) {
-            new CountDownTimer(5000, 1000) {
+
+            countDownTimer = new CountDownTimer(5000, 1000) {
                 @Override
                 public void onTick(long millisUntilFinished) {
 
@@ -120,7 +123,6 @@ public class TestCamera extends AppCompatActivity {
         } else {
             takeAPhoto();
         }
-
 
     }
 
@@ -185,7 +187,7 @@ public class TestCamera extends AppCompatActivity {
         getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
         int height = displayMetrics.heightPixels;
         int width = displayMetrics.widthPixels;
-        Log.i("hadtt", "bindPreview: "+width+"----"+height);
+        Log.i("hadtt", "bindPreview: " + width + "----" + height);
 
 
         imageCapture = new ImageCapture.Builder()
