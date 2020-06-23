@@ -6,11 +6,16 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.os.Environment;
+import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MotionEvent;
+import android.view.OrientationEventListener;
 import android.view.ScaleGestureDetector;
+import android.view.Surface;
 import android.view.View;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.Toast;
 
@@ -66,6 +71,9 @@ public class TestCamera extends AppCompatActivity {
     private ExecutorService executor = Executors.newSingleThreadExecutor();
     private File outputDirectory;
     private int ratio = AspectRatio.RATIO_4_3;
+    private String ratioNumber = "3:4";
+    private int widthPreview = 720;
+    private int heightPreview = 960;
     private PreviewConfig previewConfig;
     private int turnOnSplash = ImageCapture.FLASH_MODE_OFF;
     private boolean isTime = false;
@@ -145,6 +153,28 @@ public class TestCamera extends AppCompatActivity {
                 e.printStackTrace();
             }
         }, ContextCompat.getMainExecutor(this));
+
+        OrientationEventListener orientationEventListener = new OrientationEventListener((Context) this) {
+            @Override
+            public void onOrientationChanged(int orientation) {
+                int rotation;
+
+                // Monitors orientation values to determine the target rotation value
+                if (orientation >= 45 && orientation < 135) {
+                    rotation = Surface.ROTATION_270;
+                } else if (orientation >= 135 && orientation < 225) {
+                    rotation = Surface.ROTATION_180;
+                } else if (orientation >= 225 && orientation < 315) {
+                    rotation = Surface.ROTATION_90;
+                } else {
+                    rotation = Surface.ROTATION_0;
+                }
+
+                imageCapture.setTargetRotation(rotation);
+            }
+        };
+
+        orientationEventListener.enable();
     }
 
     @OnClick(R.id.camera_switch_button)
@@ -192,11 +222,26 @@ public class TestCamera extends AppCompatActivity {
 
     @OnClick(R.id.iv_ratio)
     public void onViewClickedRadio() {
+        //3:4 720:960
+        //9:16 720:1280
+        //1:1 720 720
 
-        if (ratio == AspectRatio.RATIO_4_3) {
-            ratio = AspectRatio.RATIO_16_9;
-        } else {
+
+        if (TextUtils.equals(ratioNumber, "1:1")) {
             ratio = AspectRatio.RATIO_4_3;
+            ratioNumber = "4:3";
+            widthPreview = 720;
+            heightPreview = 960;
+        } else if (TextUtils.equals(ratioNumber, "4:3")) {
+            ratio = AspectRatio.RATIO_16_9;
+            ratioNumber = "16:9";
+            widthPreview = 720;
+            heightPreview = 1280;
+        } else {
+            ratioNumber = "1:1";
+            ratio = AspectRatio.RATIO_4_3;
+            widthPreview = 720;
+            heightPreview = 720;
         }
 
         bindPreview();
@@ -214,6 +259,8 @@ public class TestCamera extends AppCompatActivity {
     }
 
     private File getOutputDirectory(Context context) {
+        Log.i("hadtt", "getOutputDirectory: " + Environment.getExternalStorageState());
+        Log.i("hadtt", "getOutputDirectory: " + Environment.getRootDirectory().toString());
         File[] externalMediaDirs = context.getApplicationContext().getExternalMediaDirs();
 
         if (externalMediaDirs != null && externalMediaDirs.length > 0) {
@@ -228,8 +275,13 @@ public class TestCamera extends AppCompatActivity {
     }
 
     private void bindPreview() {
+
+        Log.i("hadtt", "bindPreview: " + widthPreview + "---" + heightPreview);
+        this.setAspectRatioTextureView(widthPreview, heightPreview);
+        int rotation = (int) previewView.getRotation();
         preview = new Preview.Builder()
                 .setTargetAspectRatio(ratio)
+                .setTargetRotation(rotation)
                 .build();
 
         CameraSelector cameraSelector = new CameraSelector.Builder()
@@ -246,9 +298,13 @@ public class TestCamera extends AppCompatActivity {
         imageCapture = new ImageCapture.Builder()
                 .setFlashMode(turnOnSplash)
                 .setTargetAspectRatio(ratio)
+                .setTargetRotation(rotation)
                 .build();
+
         imageAnalyzer = new ImageAnalysis.Builder()
-                .setTargetAspectRatio(ratio).build();
+                .setTargetAspectRatio(ratio)
+                .setTargetRotation(rotation)
+                .build();
         cameraProvider.unbindAll();
 
         try {
@@ -325,4 +381,30 @@ public class TestCamera extends AppCompatActivity {
             viewGridContainer.setVisibility(View.VISIBLE);
         }
     }
+
+    private void setAspectRatioTextureView(int ResolutionWidth, int ResolutionHeight) {
+
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+        int DSI_height = displayMetrics.heightPixels;
+        int DSI_width = displayMetrics.widthPixels;
+        Log.i("hadtt", "setAspectRatioTextureView: " + DSI_height + "--" + DSI_width);
+        if (ResolutionWidth > ResolutionHeight) {
+            int newWidth = DSI_width;
+            int newHeight = ((DSI_width * ResolutionWidth) / ResolutionHeight);
+            updateTextureViewSize(newWidth, newHeight);
+
+        } else {
+            int newWidth = DSI_width;
+            int newHeight = ((DSI_width * ResolutionHeight) / ResolutionWidth);
+            updateTextureViewSize(newWidth, newHeight);
+        }
+
+    }
+
+    private void updateTextureViewSize(int viewWidth, int viewHeight) {
+        Log.i("hadtt", "TextureView Width : " + viewWidth + " TextureView Height : " + viewHeight);
+        previewView.setLayoutParams(new FrameLayout.LayoutParams(viewWidth, viewHeight));
+    }
+
 }
