@@ -27,7 +27,6 @@ import androidx.camera.core.AspectRatio;
 import androidx.camera.core.Camera;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.FocusMeteringAction;
-import androidx.camera.core.FocusMeteringResult;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
@@ -135,13 +134,19 @@ public class TestCamera extends AppCompatActivity {
             }
         });
 
-
-        previewView.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                scaleGestureDetector.onTouchEvent(event);
-                return true;
+        previewView.setOnTouchListener((v, event) -> {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    SurfaceOrientedMeteringPointFactory meteringPointFactory = new SurfaceOrientedMeteringPointFactory(previewView.getWidth(), previewView.getHeight());
+                    MeteringPoint point = meteringPointFactory.createPoint(event.getX(), event.getY());
+                    FocusMeteringAction build = new FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AF).build();
+                    camera.getCameraControl().startFocusAndMetering(build);
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    scaleGestureDetector.onTouchEvent(event);
+                    return true;
             }
+            return false;
         });
 
     }
@@ -412,4 +417,8 @@ public class TestCamera extends AppCompatActivity {
         previewView.setLayoutParams(new FrameLayout.LayoutParams(viewWidth, viewHeight));
     }
 
+    @OnClick(R.id.iv_hdr)
+    public void onViewClickedHdr() {
+
+    }
 }
