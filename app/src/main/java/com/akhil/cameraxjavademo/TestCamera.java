@@ -7,6 +7,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.CountDownTimer;
 import android.os.Environment;
+import android.os.Handler;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -25,10 +26,14 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.AspectRatio;
 import androidx.camera.core.Camera;
 import androidx.camera.core.CameraSelector;
+import androidx.camera.core.FocusMeteringAction;
+import androidx.camera.core.FocusMeteringResult;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
+import androidx.camera.core.MeteringPoint;
 import androidx.camera.core.Preview;
+import androidx.camera.core.SurfaceOrientedMeteringPointFactory;
 import androidx.camera.core.impl.PreviewConfig;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
@@ -38,8 +43,6 @@ import androidx.core.content.ContextCompat;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import java.io.File;
-import java.text.SimpleDateFormat;
-import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -63,6 +66,7 @@ public class TestCamera extends AppCompatActivity {
     ImageView ivImagePreview;
     @BindView(R.id.iv_show_image)
     ImageView ivShowImage;
+    String OUTPUT_PHOTO_DIRECTORY = "XPhoto Editor";
     private int REQUEST_CODE_PERMISSIONS = 1001;
     private ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
     private int lensFacing = CameraSelector.LENS_FACING_BACK;
@@ -80,6 +84,7 @@ public class TestCamera extends AppCompatActivity {
     private boolean isGrib = false;
     private CountDownTimer countDownTimer;
     private Camera camera;
+    private boolean isSwitchCamera = false;
 
     @SuppressLint("ClickableViewAccessibility")
     @Override
@@ -144,7 +149,7 @@ public class TestCamera extends AppCompatActivity {
 
     private void startCamera() {
         cameraProviderFuture = ProcessCameraProvider.getInstance(this);
-        outputDirectory = getOutputDirectory(this);
+        outputDirectory = createFilePhoto(OUTPUT_PHOTO_DIRECTORY);
         cameraProviderFuture.addListener(() -> {
             try {
                 cameraProvider = cameraProviderFuture.get();
@@ -170,7 +175,9 @@ public class TestCamera extends AppCompatActivity {
                     rotation = Surface.ROTATION_0;
                 }
 
-                imageCapture.setTargetRotation(rotation);
+                if (imageCapture != null) {
+                    imageCapture.setTargetRotation(rotation);
+                }
             }
         };
 
@@ -179,6 +186,19 @@ public class TestCamera extends AppCompatActivity {
 
     @OnClick(R.id.camera_switch_button)
     public void onViewClicked() {
+
+        if (isSwitchCamera) {
+            new Handler().postDelayed(() -> isSwitchCamera = false, 500);
+        }
+
+        if (!isSwitchCamera) {
+            changeLens();
+            isSwitchCamera = true;
+        }
+
+    }
+
+    public void changeLens() {
         if (CameraSelector.LENS_FACING_FRONT == lensFacing) {
             lensFacing = CameraSelector.LENS_FACING_BACK;
         } else {
@@ -258,25 +278,26 @@ public class TestCamera extends AppCompatActivity {
 
     }
 
-    private File getOutputDirectory(Context context) {
-        Log.i("hadtt", "getOutputDirectory: " + Environment.getExternalStorageState());
-        Log.i("hadtt", "getOutputDirectory: " + Environment.getRootDirectory().toString());
-        File[] externalMediaDirs = context.getApplicationContext().getExternalMediaDirs();
+    public File createFilePhoto(String storeFolder) {
+        String imageFileExt = ".jpg";
 
-        if (externalMediaDirs != null && externalMediaDirs.length > 0) {
-            File file = new File(externalMediaDirs[0].getPath(), "CameraXDemo");
-            if (!file.exists()) {
-                file.mkdirs();
-            }
-            return file;
+        if (storeFolder != null && storeFolder.trim().length() != 0) {
+            storeFolder = storeFolder.trim();
+        } else {
+            storeFolder = OUTPUT_PHOTO_DIRECTORY;
         }
-        return context.getFilesDir();
-//        return Environment.getRootDirectory();
+        String fileName = "photo_editor_" + System.currentTimeMillis() + imageFileExt;
+        String parentFolder = Environment.getExternalStorageDirectory().getAbsolutePath();
+        File folder = new File(parentFolder, storeFolder);
+        if (!folder.exists()) {
+            folder.mkdirs();
+        }
+        File file = new File(folder, fileName);
+        return file;
     }
 
     private void bindPreview() {
 
-        Log.i("hadtt", "bindPreview: " + widthPreview + "---" + heightPreview);
         this.setAspectRatioTextureView(widthPreview, heightPreview);
         int rotation = (int) previewView.getRotation();
         preview = new Preview.Builder()
@@ -287,13 +308,6 @@ public class TestCamera extends AppCompatActivity {
         CameraSelector cameraSelector = new CameraSelector.Builder()
                 .requireLensFacing(lensFacing)
                 .build();
-
-        DisplayMetrics displayMetrics = new DisplayMetrics();
-        getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
-        int height = displayMetrics.heightPixels;
-        int width = displayMetrics.widthPixels;
-        Log.i("hadtt", "bindPreview: " + width + "----" + height);
-
 
         imageCapture = new ImageCapture.Builder()
                 .setFlashMode(turnOnSplash)
@@ -319,30 +333,21 @@ public class TestCamera extends AppCompatActivity {
 
     }
 
-
-    private File createFile(File baseFolder, String fomat, String extension) {
-
-        return new File(baseFolder, new SimpleDateFormat(fomat, Locale.US).format(System.currentTimeMillis()) + extension);
-    }
-
-
     private void takeAPhoto() {
-        File file = createFile(outputDirectory, FILENAME, PHOTO_EXTENSION);
 
-        ImageCapture.OutputFileOptions outputFileOptions = new ImageCapture.OutputFileOptions.Builder(file)
+        ImageCapture.OutputFileOptions outputFileOptions = new ImageCapture.OutputFileOptions.Builder(outputDirectory)
                 .build();
 
         imageCapture.takePicture(outputFileOptions, executor, new ImageCapture.OnImageSavedCallback() {
             @Override
             public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
-
                 String saveUri = outputFileOptions.toString();
-                Log.i("hadtt", "Photo capture succeeded: $savedUri" + Uri.fromFile(file));
+                Log.i("hadtt", "Photo capture succeeded: $savedUri" + Uri.fromFile(outputDirectory));
             }
 
             @Override
             public void onError(@NonNull ImageCaptureException exception) {
-                Log.i("hadtt", "onError: ");
+                Log.i("hadtt", "onError: " + exception.getMessage());
             }
         });
     }
